@@ -1,6 +1,5 @@
 package pt.darkalpha.controllers;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -110,59 +109,75 @@ public class RestIdeaController {
 	@GetMapping("/find")
 	public ResponseEntity<List<Idea>> find(@RequestParam Map<String, String> params) {
 		
-		List<Idea> out = new ArrayList<Idea>();
-
 		// Reference:
 		// > 'insensitive' - make query case-insensitive
 		// > 'contains' - contains
 		// > 'not' - does not contain
 		// > 'tag' - not implemented
 		
-		// Search through all ideas and return the ones that have the specified keywords
-		params.forEach((key, value) -> {
-			ideaService.getAllIdeas().forEach(i -> {
-				
-				// To ease the logic below
-				String v = value;
-				String title = i.getTitle();
-				String content = i.getContent();
-				
-				// Case-sensitive stuff, kind of self-explanatory.
-				if(params.containsKey("insensitive")) {
-					v = v.toLowerCase();
-					title = title.toLowerCase();
-					content = content.toLowerCase();
-				}
-				
-				
-				// Must NOT contain the specified keywords
-				if(key.equals("not")) {
-					if(!title.contains(v) && !content.contains(v)) {
-						out.add(i);
-					}
-				}
-				
-				// Must contain the specified keywords
-				if(key.equals("contains")) {
-					if(title.contains(v) || content.contains(v)) {
-						out.add(i);
-					}
-				}
+		// If any of the parameters is "insensitive", then the whole
+		// query case-insensitive
+		
+		
+		List<Idea> out = ideaService.getAllIdeas();
 
-				
-			});
-		});
+		System.out.println(params.toString());
+		
+		// This much duplicate code is making my eyes cry
+		// please send help, I couldn't figure out any better method than the previous...
+		
+		String[] whitelist = params.get("contains") != null
+				? params.get("contains").split(",") : new String[0];
+		
+		String[] blacklist = params.get("not") != null
+				? params.get("not").split(",") : new String[0];
+		
+		
+		if(params.containsKey("insensitive")) {
+			
+			for(String word : whitelist) {
+				out = out.stream().filter(
+						x -> x.getTitle().concat(x.getContent()).toLowerCase().contains(word.toLowerCase().strip())
+						).collect(Collectors.toList());
+			}
+			
+			for(String word : blacklist) {
+				out = out.stream().filter(
+						x -> !x.getTitle().concat(x.getContent()).toLowerCase().contains(word.toLowerCase().strip())
+						).collect(Collectors.toList());
+			}
+			
+			
+			
+			
+		} else {
+			
+			for(String word : whitelist) {
+				out = out.stream().filter(
+						x -> x.getTitle().concat(x.getContent()).contains(word)
+						).collect(Collectors.toList());
+			}
+			
+			for(String word : blacklist) {
+				out = out.stream().filter(
+						x -> !x.getTitle().concat(x.getContent()).contains(word)
+						).collect(Collectors.toList());
+			}
+			
+		}
 		
 		
 		// Clean up possible duplicates because my logic in the loop is terrible
 		// also the compiler complained if I used 'out' here...
-		List<Idea> output = out.stream().distinct().collect(Collectors.toList());
+		
+		// ->>> shouldn't be needed anymore... I HOPE
+		//List<Idea> output = out.stream().distinct().collect(Collectors.toList());
 
 		
 		
-		HttpStatus status = !output.isEmpty() ? HttpStatus.OK : HttpStatus.NOT_FOUND;
+		HttpStatus status = !out.isEmpty() ? HttpStatus.OK : HttpStatus.NOT_FOUND;
 		
-		return new ResponseEntity<List<Idea>>(output, status);
+		return new ResponseEntity<List<Idea>>(out, status);
 	}
 	
 
