@@ -121,7 +121,6 @@ public class RestIdeaController {
 		
 		List<Idea> out = ideaService.getAllIdeas();
 
-		System.out.println(params.toString());
 		
 		// This much duplicate code is making my eyes cry
 		// please send help, I couldn't figure out any better method than the previous...
@@ -131,6 +130,10 @@ public class RestIdeaController {
 		
 		String[] blacklist = params.get("not") != null
 				? params.get("not").split(",") : new String[0];
+				
+		if(whitelist.length == 0 && blacklist.length == 0) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
 		
 		
 		if(params.containsKey("insensitive")) {
