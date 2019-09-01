@@ -3,6 +3,7 @@ package pt.darkalpha.services;
 
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,8 +26,13 @@ public class IdeaService {
 		return saveIdea(new Idea(title, content));
 	}
 	
-	public void deleteIdea(Long id) {
-		ideaRepository.deleteById(id);
+	public boolean deleteIdea(Long id) {
+		if(ideaRepository.findById(id).isPresent()) {
+			ideaRepository.deleteById(id);
+			return true;
+		} else {
+			return false;
+		}
 		
 	}
 	public void deleteIdea(Idea idea) {
@@ -46,6 +52,38 @@ public class IdeaService {
 	
 	public List<Idea> getAllIdeas() {
 		return (List<Idea>) ideaRepository.findAll();
+	}
+	
+	
+	public List<Idea> findByKeyword(String keyword, boolean caseSensitive) {
+		return caseSensitive
+				? ideaRepository.findByTitleOrContentContainingKeyword(keyword)
+				: ideaRepository.findByTitleOrContentContainingKeywordIgnoreCase(keyword);
+	}
+	
+	public List<Idea> findWithoutKeyword(String keyword, boolean caseSensitive) {
+		return caseSensitive
+				? ideaRepository.findByTitleOrContentWithoutContainingKeyword(keyword)
+				: ideaRepository.findByTitleOrContentWithoutContainingKeywordIgnoreCase(keyword);
+	}
+	
+	public List<Idea> filterByKeywords(List<Idea> list, List<String> blacklist, boolean caseSensitive) {
+		
+		if(caseSensitive) {
+			for(String word : blacklist) {
+				list = list.stream().filter(
+						x -> !x.getTitle().concat(x.getContent()).contains(word.strip())
+						).collect(Collectors.toList());
+			}
+		} else {
+			for(String word : blacklist) {
+				list = list.stream().filter(
+						x -> !x.getTitle().concat(x.getContent()).toLowerCase().contains(word.toLowerCase().strip())
+						).collect(Collectors.toList());
+			}
+		}
+		
+		return list;
 	}
 	
 

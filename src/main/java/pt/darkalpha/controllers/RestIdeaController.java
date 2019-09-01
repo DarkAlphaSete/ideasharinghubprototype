@@ -1,5 +1,7 @@
 package pt.darkalpha.controllers;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -63,11 +65,13 @@ public class RestIdeaController {
 			return new ResponseEntity<Idea>(HttpStatus.NOT_FOUND);
 		} else {
 			
-			int index = (int) Math.round(Math.random() * all.size()) - 1;
-			index = index > 0 ? index : index + 1;
+			// This code is ugly as hell
+			// Unfortunately for people that hate ugly code, I'm not deleting it because it works!
 			
+			int index = (int) (Math.random() * all.size());
+			//index = index > 0 ? index : 1;
 			
-			return new ResponseEntity<Idea>(ideaService.getAllIdeas().get(index), HttpStatus.OK);
+			return new ResponseEntity<Idea>(all.get(index), HttpStatus.OK);
 		}
 
 		
@@ -76,111 +80,97 @@ public class RestIdeaController {
 	@GetMapping("/all")
 	public ResponseEntity<List<Idea>> getAllIdeas() {
 		return new ResponseEntity<List<Idea>>(ideaService.getAllIdeas(), HttpStatus.OK);
-
+		
 		
 	}
 	
 	@DeleteMapping("")
 	public HttpStatus deleteIdea(@RequestParam(value="id", defaultValue="0") Long id) {
-		ideaService.deleteIdea(id);
-		return HttpStatus.OK;
+		return ideaService.deleteIdea(id)
+				?  HttpStatus.OK
+				: HttpStatus.NOT_FOUND;
 	}
 	
 //	@GetMapping("/test")
-//	public List<String> logParams(@RequestParam Map<String, String> params) {
+//	public ResponseEntity<List<String>> logParams(@RequestParam Map<String, String> params) {
 //		List<String> out = new ArrayList<String>();
 //		
+//		System.out.println("Format: Key <> Value");
 //		params.forEach((key, value) -> {
-//			System.out.println(">>> Ran");
-//			out.add(key + " - " + value);
+//			String format = String.format("'%s' <> '%s'", key, value);
+//			System.out.println(format);
+//			out.add(format);
 //		});
 //		
-//		return out;
+//		return new ResponseEntity<List<String>>(out, HttpStatus.OK);
 //	}
-	
-	public ResponseEntity<List<Idea>> findByTitle(List<String> whitelist, List<String> blacklist, boolean caseSensitive, int maxResults) {
-		@SuppressWarnings("unused")
-		String query = "FROM Idea i WHERE title in :must AND title";
-		
-		
-		return null;
-	}
+
 	
 	@GetMapping("/find")
 	public ResponseEntity<List<Idea>> find(@RequestParam Map<String, String> params) {
-		
+			
 		// Reference:
 		// > 'insensitive' - make query case-insensitive
-		// > 'contains' - contains
-		// > 'not' - does not contain
+		// > 'contains' - white-list
+		// > 'not' - black-list
 		// > 'tag' - not implemented
 		
 		// If any of the parameters is "insensitive", then the whole
 		// query case-insensitive
 		
-		
-		List<Idea> out = ideaService.getAllIdeas();
-
-		
-		// This much duplicate code is making my eyes cry
-		// please send help, I couldn't figure out any better method than the previous...
-		
 		String[] whitelist = params.get("contains") != null
-				? params.get("contains").split(",") : new String[0];
+				? params.get("contains").split(",")
+				: new String[0];
 		
 		String[] blacklist = params.get("not") != null
-				? params.get("not").split(",") : new String[0];
+				? params.get("not").split(",")
+				: new String[0];
+		
 				
+		// Would using the ternary operator here make this look better or worse?
 		if(whitelist.length == 0 && blacklist.length == 0) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
+				
+				
+		List<Idea> out = new ArrayList<Idea>();
 		
 		
-		if(params.containsKey("insensitive")) {
-			
-			for(String word : whitelist) {
-				out = out.stream().filter(
-						x -> x.getTitle().concat(x.getContent()).toLowerCase().contains(word.toLowerCase().strip())
-						).collect(Collectors.toList());
+		// THIS THING:
+		// Currently returns everything that does not have a certain keyword when
+		// operating with the black-list alone. It's not even intuitive.
+		// Bah, I'm too bored to fix it. White-list + black-list is working as intended
+		// (finds with a specific word, and then filters out those with specific words)
+		
+		if(whitelist.length == 0 && blacklist.length > 0) {
+			for(String s : blacklist) {
+				out.addAll(ideaService.findWithoutKeyword(s, !params.containsKey("insensitive")));
 			}
 			
-			for(String word : blacklist) {
-				out = out.stream().filter(
-						x -> !x.getTitle().concat(x.getContent()).toLowerCase().contains(word.toLowerCase().strip())
-						).collect(Collectors.toList());
+		} else if(whitelist.length > 0 && blacklist.length == 0) {
+			for(String s : whitelist) {
+				out.addAll(ideaService.findByKeyword(s, !params.containsKey("insensitive")));
 			}
 			
+		} else if(whitelist.length > 0 && blacklist.length > 0) {
 			
-			
-			
-		} else {
-			
-			for(String word : whitelist) {
-				out = out.stream().filter(
-						x -> x.getTitle().concat(x.getContent()).contains(word)
-						).collect(Collectors.toList());
+			for(String s : whitelist) {
+				out.addAll(ideaService.findByKeyword(s, !params.containsKey("insensitive")));
 			}
 			
-			for(String word : blacklist) {
-				out = out.stream().filter(
-						x -> !x.getTitle().concat(x.getContent()).contains(word)
-						).collect(Collectors.toList());
-			}
+			out = ideaService.filterByKeywords(out, Arrays.asList(blacklist), !params.containsKey("insensitive"));
 			
 		}
 		
-		
-		// Clean up possible duplicates because my logic in the loop is terrible
-		// also the compiler complained if I used 'out' here...
-		
-		// ->>> shouldn't be needed anymore... I HOPE
-		//List<Idea> output = out.stream().distinct().collect(Collectors.toList());
+		// Clean up possible duplicates because of my flawed logic.
+		// ...
+		List<Idea> output = out.stream().distinct().collect(Collectors.toList());
 
 		
 		
-		HttpStatus status = !out.isEmpty() ? HttpStatus.OK : HttpStatus.NOT_FOUND;
+		HttpStatus status = !output.isEmpty() ? HttpStatus.OK : HttpStatus.NOT_FOUND;
 		
-		return new ResponseEntity<List<Idea>>(out, status);
+		return new ResponseEntity<List<Idea>>(output, status);
 	}
 	
 

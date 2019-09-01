@@ -49,6 +49,18 @@ public class Idea {
 		return id;
 	}
 
+	
+	// It's only the same thing if the ID is the same
+	@Override
+	public boolean equals(Object other) {
+		if(other == null || !other.getClass().isAssignableFrom(Idea.class)) {
+			return false;
+		}
+
+		final Idea idea = (Idea) other;
+		
+		return idea.getId() == this.getId();
+	}
 
 	
 }
