@@ -11,19 +11,23 @@ public class Idea {
 	@GeneratedValue
 	private Long id;
 	
+	private Long timePosted;
+	
 
 	private Long stars;
 	private String title;
-	private String content;
+	private String[] tags;
 	
 	public Idea() {
+		timePosted = System.currentTimeMillis();
 		
 	}
 	
-	public Idea(String title, String content) {
+	public Idea(String title, String[] tags) {
 		this.stars = 0L;
 		this.title = title;
-		this.content = content;
+		this.tags = tags;
+		timePosted = System.currentTimeMillis();
 	}
 	
 	
@@ -39,14 +43,17 @@ public class Idea {
 	public void setTitle(String title) {
 		this.title = title;
 	}
-	public String getContent() {
-		return content;
+	public String[] getTags() {
+		return tags;
 	}
-	public void setContent(String content) {
-		this.content = content;
+	public void setTags(String[] tags) {
+		this.tags = tags;
 	}
 	public Long getId() {
 		return id;
+	}
+	public Long getTimePosted() {
+		return timePosted;
 	}
 
 	

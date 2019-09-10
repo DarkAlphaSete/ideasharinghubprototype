@@ -6,6 +6,8 @@ import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import pt.darkalpha.models.Idea;
@@ -19,14 +21,14 @@ public class IdeaService {
 	
 	
 	
-	public Idea saveIdea(Idea idea) {
+	public Idea postIdea(Idea idea) {
 		return ideaRepository.save(idea);
 	}
-	public Idea saveIdea(String title, String content) {
-		return saveIdea(new Idea(title, content));
+	public Idea postIdea(String title, String[] tags) {
+		return postIdea(new Idea(title, tags));
 	}
 	
-	public boolean deleteIdea(Long id) {
+	public boolean removeIdea(Long id) {
 		if(ideaRepository.findById(id).isPresent()) {
 			ideaRepository.deleteById(id);
 			return true;
@@ -35,8 +37,8 @@ public class IdeaService {
 		}
 		
 	}
-	public void deleteIdea(Idea idea) {
-		deleteIdea(idea.getId());
+	public void removeIdea(Idea idea) {
+		removeIdea(idea.getId());
 	}
 	
 	public Idea getIdeaById(Long id) {
@@ -54,31 +56,37 @@ public class IdeaService {
 		return (List<Idea>) ideaRepository.findAll();
 	}
 	
-	
-	public List<Idea> findByKeyword(String keyword, boolean caseSensitive) {
-		return caseSensitive
-				? ideaRepository.findByTitleOrContentContainingKeyword(keyword)
-				: ideaRepository.findByTitleOrContentContainingKeywordIgnoreCase(keyword);
+	public Page<Idea> getAllIdeas(Pageable pageable) {
+		return ideaRepository.findAll(pageable);
 	}
 	
-	public List<Idea> findWithoutKeyword(String keyword, boolean caseSensitive) {
+	
+	public Page<Idea> findByKeyword(String keyword, boolean caseSensitive, Pageable pageable) {
 		return caseSensitive
-				? ideaRepository.findByTitleOrContentWithoutContainingKeyword(keyword)
-				: ideaRepository.findByTitleOrContentWithoutContainingKeywordIgnoreCase(keyword);
+				? ideaRepository.findByTitleContaining(keyword, pageable)
+				: ideaRepository.findByTitleContainingIgnoreCase(keyword, pageable);
 	}
 	
+	public Page<Idea> findWithoutKeyword(String keyword, boolean caseSensitive, Pageable pageable) {
+		return caseSensitive
+				? ideaRepository.findByTitleNotContaining(keyword, pageable)
+				: ideaRepository.findByTitleNotContainingIgnoreCase(keyword, pageable);
+	}
+	
+	
+	// TODO: Make this work with Pages
 	public List<Idea> filterByKeywords(List<Idea> list, List<String> blacklist, boolean caseSensitive) {
 		
 		if(caseSensitive) {
 			for(String word : blacklist) {
 				list = list.stream().filter(
-						x -> !x.getTitle().concat(x.getContent()).contains(word.strip())
+						x -> !x.getTitle().concat(x.getTitle()).contains(word.strip())
 						).collect(Collectors.toList());
 			}
 		} else {
 			for(String word : blacklist) {
 				list = list.stream().filter(
-						x -> !x.getTitle().concat(x.getContent()).toLowerCase().contains(word.toLowerCase().strip())
+						x -> !x.getTitle().concat(x.getTitle()).toLowerCase().contains(word.toLowerCase().strip())
 						).collect(Collectors.toList());
 			}
 		}

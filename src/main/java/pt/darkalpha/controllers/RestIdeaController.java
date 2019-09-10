@@ -7,6 +7,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -28,15 +33,16 @@ public class RestIdeaController {
 	
 	
 	
-	@PostMapping("")
+	@PostMapping
 	public ResponseEntity<Idea> postIdea(
 			@RequestParam("title") String title,
-			@RequestParam("content") String content) {
-		return new ResponseEntity<Idea>(ideaService.saveIdea(new Idea(title, content)), HttpStatus.CREATED);
+			@RequestParam("tag") String[] tags) {
+		
+		return new ResponseEntity<Idea>(ideaService.postIdea(new Idea(title, tags)), HttpStatus.CREATED);
 	}
 	
 	
-	@GetMapping("")
+	@GetMapping
 	public ResponseEntity<Idea> getIdeaById(@RequestParam(value="id", defaultValue="0") Long id) {
 		
 		
@@ -78,15 +84,41 @@ public class RestIdeaController {
 	}
 	
 	@GetMapping("/all")
-	public ResponseEntity<List<Idea>> getAllIdeas() {
-		return new ResponseEntity<List<Idea>>(ideaService.getAllIdeas(), HttpStatus.OK);
+	public ResponseEntity<Page<Idea>> getAllIdeas(
+			@RequestParam(name="page", required=false) Integer page,
+			@RequestParam(name="order", required=false) String order,
+			@RequestParam(name="sort", required=false) String sort) { // Either "stars" or "timePosted"
 		
+
+		// Only sort if all parameters are given
+		if(page != null && order != null && sort != null) {
+			
+			Pageable pageable;
+			
+			switch(order) {
+			default:
+			case "asc":
+			case "ascending":
+				pageable = PageRequest.of(page, 25, Sort.by(sort).ascending());
+				break;
+			case "desc":
+			case "descending":
+				pageable = PageRequest.of(page, 25, Sort.by(sort).descending());
+				break;
+			}
+			
+			return new ResponseEntity<Page<Idea>>(ideaService.getAllIdeas(pageable), HttpStatus.OK);
+		
+		}
+		
+
+		return new ResponseEntity<Page<Idea>>(new PageImpl<>(ideaService.getAllIdeas()), HttpStatus.OK);
 		
 	}
 	
-	@DeleteMapping("")
+	@DeleteMapping()
 	public HttpStatus deleteIdea(@RequestParam(value="id", defaultValue="0") Long id) {
-		return ideaService.deleteIdea(id)
+		return ideaService.removeIdea(id)
 				? HttpStatus.OK
 				: HttpStatus.NOT_FOUND;
 	}
@@ -104,8 +136,9 @@ public class RestIdeaController {
 //		
 //		return new ResponseEntity<List<String>>(out, HttpStatus.OK);
 //	}
-
 	
+	
+	// TODO: Overhaul this damn ugly thing
 	@GetMapping("/find")
 	public ResponseEntity<List<Idea>> find(@RequestParam Map<String, String> params) {
 			
@@ -113,10 +146,18 @@ public class RestIdeaController {
 		// > 'insensitive' - make query case-insensitive
 		// > 'contains' - white-list
 		// > 'not' - black-list
-		// > 'tag' - not implemented
-		
+		// > 'tag'
+		//
+		// > 'sort' - stars, timePosted
+		// > 'order' - (asc)ending, (desc)ending
+		// > 'page'
+		// (the page size is going to always be 25)
+		//
 		// If any of the parameters is "insensitive", then the whole
 		// query case-insensitive
+		
+		
+		// I should probably make a "Request" class or something... 
 		
 		String[] whitelist = params.get("contains") != null
 				? params.get("contains").split(",")
@@ -135,6 +176,8 @@ public class RestIdeaController {
 				
 		List<Idea> out = new ArrayList<Idea>();
 		
+		Pageable pageable = PageRequest.of(0, 500);
+		
 		
 		// THIS THING:
 		// Currently returns everything that does not have a certain keyword when
@@ -144,18 +187,18 @@ public class RestIdeaController {
 		
 		if(whitelist.length == 0 && blacklist.length > 0) {
 			for(String s : blacklist) {
-				out.addAll(ideaService.findWithoutKeyword(s, !params.containsKey("insensitive")));
+				out.addAll(ideaService.findWithoutKeyword(s, !params.containsKey("insensitive"), pageable).getContent());
 			}
 			
 		} else if(whitelist.length > 0 && blacklist.length == 0) {
 			for(String s : whitelist) {
-				out.addAll(ideaService.findByKeyword(s, !params.containsKey("insensitive")));
+				out.addAll(ideaService.findByKeyword(s, !params.containsKey("insensitive"), pageable).getContent());
 			}
 			
 		} else if(whitelist.length > 0 && blacklist.length > 0) {
 			
 			for(String s : whitelist) {
-				out.addAll(ideaService.findByKeyword(s, !params.containsKey("insensitive")));
+				out.addAll(ideaService.findByKeyword(s, !params.containsKey("insensitive"), pageable).getContent());
 			}
 			
 			out = ideaService.filterByKeywords(out, Arrays.asList(blacklist), !params.containsKey("insensitive"));
