@@ -3,6 +3,8 @@ package pt.darkalpha;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+import pt.darkalpha.auth.SecurityConfig;
+
 @SpringBootApplication
 public class IdeaSharingHubPrototypeApplication {
 
@@ -10,4 +12,8 @@ public class IdeaSharingHubPrototypeApplication {
 		SpringApplication.run(IdeaSharingHubPrototypeApplication.class, args);
 	}
 
+	protected Class<?>[] getRootConfigClasses() {
+        return new Class[] {SecurityConfig.class};
+    }
+	
 }

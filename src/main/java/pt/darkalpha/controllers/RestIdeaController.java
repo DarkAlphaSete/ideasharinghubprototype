@@ -87,7 +87,7 @@ public class RestIdeaController {
 	@DeleteMapping("")
 	public HttpStatus deleteIdea(@RequestParam(value="id", defaultValue="0") Long id) {
 		return ideaService.deleteIdea(id)
-				?  HttpStatus.OK
+				? HttpStatus.OK
 				: HttpStatus.NOT_FOUND;
 	}
 	
