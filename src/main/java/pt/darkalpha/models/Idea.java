@@ -1,5 +1,8 @@
 package pt.darkalpha.models;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
@@ -26,7 +29,8 @@ public class Idea {
 	public Idea(String title, String[] tags) {
 		this.stars = 0L;
 		this.title = title;
-		this.tags = tags;
+		this.tags = lowerArray(tags);
+
 		timePosted = System.currentTimeMillis();
 	}
 	
@@ -47,7 +51,7 @@ public class Idea {
 		return tags;
 	}
 	public void setTags(String[] tags) {
-		this.tags = tags;
+		this.tags = lowerArray(tags);
 	}
 	public Long getId() {
 		return id;
@@ -56,6 +60,19 @@ public class Idea {
 		return timePosted;
 	}
 
+	
+	
+	private String[] lowerArray(String[] array) {
+		
+		String[] out = new String[array.length];
+		
+		for(int i = 0; i < array.length; i++) {
+			out[i] = array[i].toLowerCase();
+		}
+		
+		return out;
+		
+	}
 	
 	// It's only the same thing if the ID is the same
 	@Override

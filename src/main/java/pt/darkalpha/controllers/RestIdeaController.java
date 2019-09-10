@@ -36,7 +36,9 @@ public class RestIdeaController {
 	@PostMapping
 	public ResponseEntity<Idea> postIdea(
 			@RequestParam("title") String title,
-			@RequestParam("tag") String[] tags) {
+			@RequestParam("tag") String _tags) {
+		
+		String[] tags = _tags.split("[,\\s]+");
 		
 		return new ResponseEntity<Idea>(ideaService.postIdea(new Idea(title, tags)), HttpStatus.CREATED);
 	}
@@ -96,15 +98,15 @@ public class RestIdeaController {
 			Pageable pageable;
 			
 			switch(order) {
-			default:
-			case "asc":
-			case "ascending":
-				pageable = PageRequest.of(page, 25, Sort.by(sort).ascending());
-				break;
-			case "desc":
-			case "descending":
-				pageable = PageRequest.of(page, 25, Sort.by(sort).descending());
-				break;
+				default:
+				case "asc":
+				case "ascending":
+					pageable = PageRequest.of(page, 25, Sort.by(sort).ascending());
+					break;
+				case "desc":
+				case "descending":
+					pageable = PageRequest.of(page, 25, Sort.by(sort).descending());
+					break;
 			}
 			
 			return new ResponseEntity<Page<Idea>>(ideaService.getAllIdeas(pageable), HttpStatus.OK);
@@ -140,13 +142,13 @@ public class RestIdeaController {
 	
 	// TODO: Overhaul this damn ugly thing
 	@GetMapping("/find")
-	public ResponseEntity<List<Idea>> find(@RequestParam Map<String, String> params) {
+	public ResponseEntity<Page<Idea>> find(@RequestParam Map<String, String> params) {
 			
 		// Reference:
 		// > 'insensitive' - make query case-insensitive
 		// > 'contains' - white-list
 		// > 'not' - black-list
-		// > 'tag'
+		// > 'tags'
 		//
 		// > 'sort' - stars, timePosted
 		// > 'order' - (asc)ending, (desc)ending
@@ -166,17 +168,45 @@ public class RestIdeaController {
 		String[] blacklist = params.get("not") != null
 				? params.get("not").split(",")
 				: new String[0];
+				
+		String[] tags = params.get("tags") != null
+				? params.get("tags").split(",")
+				: new String[0];
+			
+		String sort = params.get("sort") != null
+				? params.get("sort")
+				: "timePosted";
+		
+		String order = params.get("order") != null
+				? params.get("order")
+				: "asc";
+				
+		int page = params.get("page") != null
+				? Integer.parseInt(params.get("page"))
+				: 0;
+				
+		Pageable pageable;
+				
+		switch(order) {
+			default:
+			case "asc":
+			case "ascending":
+				pageable = PageRequest.of(page, 25, Sort.by(sort).ascending());
+				break;
+			case "desc":
+			case "descending":
+				pageable = PageRequest.of(page, 25, Sort.by(sort).descending());
+				break;
+		}
 		
 				
 		// Would using the ternary operator here make this look better or worse?
-		if(whitelist.length == 0 && blacklist.length == 0) {
+		if(whitelist.length == 0 && blacklist.length == 0 && tags.length == 0) {
 			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 		}
 				
 				
 		List<Idea> out = new ArrayList<Idea>();
-		
-		Pageable pageable = PageRequest.of(0, 500);
 		
 		
 		// THIS THING:
@@ -205,16 +235,35 @@ public class RestIdeaController {
 			
 		}
 		
+		if(tags.length > 0) {
+			if(whitelist.length == 0 && blacklist.length == 0) {
+				out = ideaService.getAllIdeas(pageable).getContent();
+			}
+			out = ideaService.filterByTags(out, arrayToList(tags));
+		}
+		
 		// Clean up possible duplicates because of my flawed logic.
 		// ...
-		List<Idea> output = out.stream().distinct().collect(Collectors.toList());
+		Page<Idea> output = new PageImpl<>(out.stream().distinct().collect(Collectors.toList()));
 
 		
 		
 		HttpStatus status = !output.isEmpty() ? HttpStatus.OK : HttpStatus.NOT_FOUND;
 		
-		return new ResponseEntity<List<Idea>>(output, status);
+		return new ResponseEntity<Page<Idea>>(output, status);
 	}
 	
+	// TODO: Move this function to an utils class
+	private List<String> arrayToList(String[] array) {
+		
+		List<String> out = new ArrayList<>();
+		
+		for(String s: array) {
+			out.add(s);
+		}
+		
+		return out;
+		
+	}
 
 }

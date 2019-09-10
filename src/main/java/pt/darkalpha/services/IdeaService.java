@@ -1,6 +1,7 @@
 package pt.darkalpha.services;
 
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -74,7 +75,7 @@ public class IdeaService {
 	}
 	
 	
-	// TODO: Make this work with Pages
+	// TODO: Somehow avoid having a duplicate function for tags
 	public List<Idea> filterByKeywords(List<Idea> list, List<String> blacklist, boolean caseSensitive) {
 		
 		if(caseSensitive) {
@@ -92,6 +93,31 @@ public class IdeaService {
 		}
 		
 		return list;
+	}
+	
+	public List<Idea> filterByTags(List<Idea> list, List<String> whitelist) {
+		
+		
+		for(String word : whitelist) {
+			list = list.stream().filter(
+					x -> arrayToList(x.getTags()).contains(word.strip())
+					).collect(Collectors.toList());
+		}
+
+		
+		return list;
+	}
+	
+	private List<String> arrayToList(String[] array) {
+		
+		List<String> out = new ArrayList<>();
+		
+		for(String s: array) {
+			out.add(s);
+		}
+		
+		return out;
+		
 	}
 	
 
